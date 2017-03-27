@@ -38,10 +38,10 @@ public class TestListFragment extends Fragment {
         final ListFragmentBinding mBinding = DataBindingUtil.inflate(inflater, R.layout.fragment_test_list, container, false);
         ArrayList<String> arrayList = new ArrayList<>();
         for (int i = 0; i < 50; i++) {
-            if (i % 4 == 0) {
+            if (i % 10 == 0) {
                 arrayList.add("start" + i);
-            }
-            arrayList.add(String.format("第%d项", i));
+            } else
+                arrayList.add(String.format("第%d项", i));
         }
         mBinding.recycleView.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.VERTICAL, false));
         DefaultItemAnimator animator = new DefaultItemAnimator() {

@@ -56,6 +56,7 @@ public class MyAdapter extends RecyclerView.Adapter<MyAdapter.ViewHolder> {
 
     @Override
     public void onBindViewHolder(final ViewHolder holder, final int position) {
+        Log.i("Section", "bind position" + position);
         holder.textView.setText((String) getItem(position));
         holder.textView.setOnClickListener(holder);
         final View itemView = holder.itemView;

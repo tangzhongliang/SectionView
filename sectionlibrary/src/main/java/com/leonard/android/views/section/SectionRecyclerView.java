@@ -1,12 +1,15 @@
 package com.leonard.android.views.section;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.support.annotation.Nullable;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -22,6 +25,7 @@ import java.util.List;
  */
 
 public class SectionRecyclerView extends RecyclerView {
+    private static final String TAG = SectionRecyclerView.class.getSimpleName();
     private PinnedSection mPinnedSection;
     public static int ITEM_PINNED_TYPE = 1;
 
@@ -37,10 +41,7 @@ public class SectionRecyclerView extends RecyclerView {
     public void draw(Canvas c) {
         super.draw(c);
         if (mPinnedSection != null) {
-            int save = c.save();
-//            c.translate(0, mPinnedSection.offset);
-            drawChild(c, mPinnedSection.viewHolder.itemView, getDrawingTime());
-//            c.restoreToCount(save);
+            drawChild(c, mPinnedSection.viewHolder.itemView, 0);
         }
     }
 
@@ -52,8 +53,21 @@ public class SectionRecyclerView extends RecyclerView {
     }
 
     @Override
+    public void onScrolled(int dx, int dy) {
+        super.onScrolled(dx, dy);
+    }
+
+    @Override
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
         super.onLayout(changed, l, t, r, b);
+        Log.i(TAG, "onLayout");
+        destroyPinnedSection();
+        int[] sectionPosition = findSectionPosition();
+        createPinnedShadow(sectionPosition[0], sectionPosition[1]);
+        Log.i(TAG, "onLayout2");
+    }
+
+    private void destroyPinnedSection() {
         mPinnedSection = null;
     }
 
@@ -72,11 +86,17 @@ public class SectionRecyclerView extends RecyclerView {
                 }
             }
         } else {
-            headPosition = firstCompletelyVisibleItemPosition;
+            for (int i = firstCompletelyVisibleItemPosition; i > -1; i--) {
+                if (getAdapter().getItemViewType(i) == ITEM_PINNED_TYPE) {
+                    headPosition = i;
+                    break;
+                }
+            }
         }
         if (firstCompletelyVisibleItemPosition - headPosition >= 1 && itemViewType == 1) {
             headTopOffset = firstCompleteView.getTop() - firstCompleteView.getHeight();
         }
+
         return new int[]{headPosition, headTopOffset};
     }
 
@@ -91,19 +111,26 @@ public class SectionRecyclerView extends RecyclerView {
      */
     static class PinnedSection {
         public ViewHolder viewHolder;
-        public int position;
+        public int position = -1;
         public long id;
         public int offset;
+
+        public Bitmap drawingCache;
     }
 
     void createPinnedShadow(int position, int offset) {
 
         // try to recycle shadow
-        PinnedSection pinnedShadow = null;
+        PinnedSection pinnedShadow = mPinnedSection;
 
+        if (position < 0) {
+            return;
+        }
         // create new shadow, if needed
         if (pinnedShadow == null) {
             ViewHolder viewHolder = getAdapter().createViewHolder(this, 0);
+            viewHolder.itemView.setDrawingCacheEnabled(true);
+            viewHolder.setIsRecyclable(false);
             pinnedShadow = new PinnedSection();
             pinnedShadow.viewHolder = viewHolder;
             ViewGroup.LayoutParams layoutParams = pinnedShadow.viewHolder.itemView.getLayoutParams();
@@ -115,7 +142,8 @@ public class SectionRecyclerView extends RecyclerView {
             int heightMode = View.MeasureSpec.getMode(layoutParams.height);
             int heightSize = View.MeasureSpec.getSize(layoutParams.height);
 
-            if (heightMode == View.MeasureSpec.UNSPECIFIED) heightMode = View.MeasureSpec.EXACTLY;
+            if (heightMode == View.MeasureSpec.UNSPECIFIED)
+                heightMode = View.MeasureSpec.EXACTLY;
 
             int maxHeight = getHeight() - getPaddingTop() - getPaddingBottom();
             if (heightSize > maxHeight)
@@ -126,15 +154,20 @@ public class SectionRecyclerView extends RecyclerView {
             int hs = View.MeasureSpec.makeMeasureSpec(heightSize, heightMode);
             pinnedView.measure(ws, hs);
             // read layout parameters
-            pinnedView.layout(0, offset, pinnedView.getMeasuredWidth(), pinnedView.getMeasuredHeight() + offset);
-        }
-        pinnedShadow.position = position;
-        // request new view using recycled view, if such
-        getAdapter().bindViewHolder(pinnedShadow.viewHolder, position);
-        // initialize pinned shadow
-        pinnedShadow.position = position;
-        pinnedShadow.id = getAdapter().getItemId(position);
 
+            pinnedView.layout(0, 0, pinnedView.getMeasuredWidth(), pinnedView.getMeasuredHeight());
+
+        }
+        View pinnedView = pinnedShadow.viewHolder.itemView;
+        pinnedShadow.viewHolder.itemView.layout(0, offset, pinnedView.getMeasuredWidth(), pinnedView.getMeasuredHeight() + offset);
+        // request new view using recycled view, if such
+        if (pinnedShadow.position != position) {
+            Log.i(TAG, "pinned position" + position + " " + offset);
+            getAdapter().bindViewHolder(pinnedShadow.viewHolder, position);
+            // initialize pinned shadow
+            pinnedShadow.position = position;
+            pinnedShadow.id = getAdapter().getItemId(position);
+        }
         // store pinned shadow
         pinnedShadow.offset = offset;
         mPinnedSection = pinnedShadow;
@@ -152,7 +185,7 @@ public class SectionRecyclerView extends RecyclerView {
         });
         Iterator iterator = list.iterator();
         int i;
-        while (iterator.hasNext()){
+        while (iterator.hasNext()) {
             Object current = iterator.next();
 
         }
